@@ -1,0 +1,167 @@
+# ######################################################
+# By Paul A. Leroux
+# Version 0.01  2021-03-24
+# Version 0.02 2021-03-25    Program is now VSP agnostic
+# version 0.03 2021-03-28    Added vIST or Non vIST function
+# version 0.04 2021-03-29    Add function for VSP type and VOSS version (removed)
+# version 0.05 2021-08-20    Fixed formatting.
+# This program will generate a baseline configuration
+# for a VSP4900 or 5520 or 7200 series
+# Assumptions:
+# - A site naming convention has been created
+#   -NodeNAMES
+#   -switch location
+#   -vIST Yes or No     if Yes.   vIST VLAN ID and baseMAC
+#   -VLAN for Edge access switches
+#  - IP plan
+#   -NNI ports
+#   - VSP has been booted into factory-defaults mode (No ZTP pre-configuration)
+#
+#
+#
+#
+#
+
+###############################
+###### Future static VARs##########
+# vsp4000ports = "1/1-1/50"
+# vsp4924ports = "1/1-1/24,2/1-2/4"
+# vsp4948ports = "1/1-1/48,2/1-2/4"
+# vsp5520_24ports = "1/1-1/24,2/1-2/4"
+# vsp5520_48ports = "1/1-1/48,2/1-2/4"
+# vsp7400_48Yports = "1/1-1/48,2/1-2/8"
+# vsp7400_32cports = "1/1-1/32
+# voss_82XX_del_ZTP = "no private-vlan enable"
+# voss_83XX_del_ZTP = "no auto-sense enable"
+# voss_remove_vlan4080 = "vlan members remove 4048"
+########## End Static VARS ######################
+#
+print ("This program will create a baseline VSP configuration you can 'Cut & Paste' to load to a VSP switch")
+print ("Please enter VSP information to start")
+
+
+#
+# print("What model of VSP are you configuring?")
+# print("Enter '1' for VSP4800 or VSP4450")
+# print("Enter '2' for VSP4800 or VSP4450 ")
+# print("Enter '3' for VSP4900-24: 'Any 24 port version' ")
+# print("Enter '4' for 5520-24: 'Any 24 port version' ")
+# print("Enter '5' for 5520-48: 'Any 48  port version Including the 5520-12-36")
+# print("Enter '6' for VSP7400-48Y:")
+# VSP_makeModel = str(input())
+#
+# print("What VOSS version is the VSP running?")
+# print("Enter '1' for VOSS 8.1 or 7.1 or older")
+# print("Enter '2' for VOSS 8.2.X")
+# print("Enter '3' for 8.3.X or newer")
+# VOSS_version = str(input())
+#
+
+
+print ("Enter node name for VSP Example: '4901' or '7401' or '5523' ")
+nodeName = str(input())
+print ("Enter location for switch (i.e. CORE01 or TowerB)")
+sysName = str(input())
+
+#
+# ### VIST Function
+print ("Will this VSP be part of a dual vIST cluster.  Enter 'y' or 'n' ")
+vistYESorNo = str(input().upper())
+if vistYESorNo == "Y":
+    print ("Will this switch be VSP number 1 or number 2 in the vIST cluster: Enter 1 or 2")
+    vIST_1_or_2 = str(input())
+    print ("What is the Node name of the vIST Peer?  Example:  '4901' or '4902' ")
+    peerNodeName = str(input())
+    print ("Enter vIST VLAN Number for the vIST cluster. Much be same ID used on peer. Must be unique in the network ")
+    vIST_vlanID = str(input())
+    print("What are the first 8 characters of VSP XXX1 Base MAC address, no spaces.  NOTE: CLI command 'SHOW SYS-INFO' will have the MAC address")
+    vIST_BaseMac = str(input())
+
+print("Enter VLAN ID for edge access devices for {}_{}. Start at 10" .format(nodeName, sysName))
+vlanId = str(input())
+
+print("Enter the complete range of all front facing ports ex 1/1-1/48,2/1-2/4")
+vlan01_portsremove = str(input())
+
+print("Enter port range of I/O ports that will be in VLAN {} 'Example 1/1-1/24 or 1/1-1/48'"   .format(vlanId))
+io_ports = str(input())
+
+print("Enter port range of NNI ports that will interconnect VSPs 'Example 2/1-2/24")
+nni_ports= str(input())
+
+
+####### output file
+print ("#################CUT AND PASTE BELOW THIS LINE INTO a text file named config.cfg #######################")
+print ("spbm")
+print ("prompt {}" .format(nodeName))
+print ("router isis")
+print ("No router isis")
+print ("Yes")
+print ("Router isis")
+print ("sys-name {}_{}" .format(nodeName, sysName))
+print ("system-id 0000.0001.{}" .format(nodeName))
+print ("spbm 1")
+print ("spbm 1 nick-name 0.{}{}.{}{}" .format(nodeName[0], nodeName[1], nodeName[2], nodeName[3]))
+print("spbm 1 b-vid 4051-4052 primary 4051 ")
+print ("spbm 1 multicast enable")
+print ("Spbm 1 ip enable")
+print("manual-area 49.0001")
+print ("vlan create 4051 name BVLAN-1 type spbm-bvlan")
+print ("vlan create 4052 name BVLAN-2 type spbm-bvlan")
+
+
+
+
+
+if vistYESorNo == "Y":
+    print("vlan create {} name IST_vlan type port-mstprstp 0" .format(vIST_vlanID))
+    print("vlan i-sid {} {}" .format(vIST_vlanID, vIST_vlanID))
+    print("Interface vlan {}" .format(vIST_vlanID))
+    print("ip address 172.20.{}.{}/30" .format(vIST_vlanID, vIST_1_or_2))
+    print("spbm 1 smlt-virtual-bmac {}{}:{}{}:{}{}:{}{}:FF:FF" .format(vIST_BaseMac[0], vIST_BaseMac[1], vIST_BaseMac[2], vIST_BaseMac[3], vIST_BaseMac[4], vIST_BaseMac[5], vIST_BaseMac[6], vIST_BaseMac[7]))
+    print("spbm 1 smlt-peer-system-id 0000.0001.{}" .format(peerNodeName))
+
+    if vIST_1_or_2 == "1":
+        print ("virtual-ist peer-ip 172.20.{}.2 vlan {}"  .format(vIST_vlanID, vIST_vlanID))
+
+    if vIST_1_or_2 == "2":
+        print ("virtual-ist peer-ip 172.20.{}.1 vlan {}"  .format(vIST_vlanID, vIST_vlanID))
+
+
+
+if True:
+    print("cfm spbm en")
+    print("vlan member remove 1 {}" .format(vlan01_portsremove))
+    print ("interface loopback 1")
+    print("ip address 1 172.17.{}{}.{}{}/32" .format(nodeName[0], nodeName[1], nodeName[2], nodeName[3]))
+    print("router isis")
+    print("ip-source-address 172.17.{}{}.{}{}" .format(nodeName[0], nodeName[1], nodeName[2], nodeName[3]))
+    print("spbm 1 ip en")
+    print("router isis")
+    print("redistribute direct ")
+    print("redistribute direct enable")
+    print("router isis")
+    print("router isis enable")
+    print("exit")
+    print("isis apply redistribute direct ")
+    print("mgmt clip ")
+    print("ip address 172.16.{}{}.{}{}/32" .format(nodeName[0], nodeName[1], nodeName[2], nodeName[3]))
+    print("enable")
+    print("vlan create {} type port-mstprstp 0" .format(vlanId))
+    print("vlan i-sid {} {}" .format(vlanId, vlanId))
+    print("int vlan {}" .format(vlanId))
+    print("ip address 10.{}.1.1/24" .format(vlanId))
+    print("ip spb-multicast enable")
+    print("vlan members add {} {}" .format(vlanId, io_ports))
+    print("int gig {}" .format(io_ports))
+    print ("no spanning-tree mstp force-port-state enable")
+    print ("y")
+    print ("no shut")
+    print("int gig {} " .format(nni_ports))
+    print ("isis")
+    print ("isis spbm 1")
+    print ( "isis en")
+    print ("no spanning-tree mstp force-port-state enable")
+    print ("y")
+    print ("untagged-frames-discard")
+    print ("no shut")
